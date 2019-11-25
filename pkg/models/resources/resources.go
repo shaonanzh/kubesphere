@@ -42,6 +42,7 @@ func init() {
 	resources[S2iBuilders] = &s2iBuilderSearcher{}
 	resources[S2iRuns] = &s2iRunSearcher{}
 	resources[HorizontalPodAutoscalers] = &hpaSearcher{}
+	resources[Applications] = &appSearcher{}
 
 	resources[Nodes] = &nodeSearcher{}
 	resources[Namespaces] = &namespaceSearcher{}
@@ -67,11 +68,13 @@ const (
 	Role                     = "role"
 	CreateTime               = "createTime"
 	UpdateTime               = "updateTime"
+	StartTime                = "startTime"
 	LastScheduleTime         = "lastScheduleTime"
 	chart                    = "chart"
 	release                  = "release"
 	annotation               = "annotation"
 	Keyword                  = "keyword"
+	UserFacing               = "userfacing"
 	Status                   = "status"
 	includeCronJob           = "includeCronJob"
 	storageClassName         = "storageClassName"
@@ -87,6 +90,8 @@ const (
 	StatusBound              = "bound"
 	StatusLost               = "lost"
 	StatusComplete           = "complete"
+	StatusWarning            = "warning"
+	StatusUnschedulable      = "unschedulable"
 	app                      = "app"
 	Deployments              = "deployments"
 	DaemonSets               = "daemonsets"
@@ -103,6 +108,7 @@ const (
 	Services                 = "services"
 	StatefulSets             = "statefulsets"
 	HorizontalPodAutoscalers = "horizontalpodautoscalers"
+	Applications             = "applications"
 	Nodes                    = "nodes"
 	Namespaces               = "namespaces"
 	StorageClasses           = "storageclasses"

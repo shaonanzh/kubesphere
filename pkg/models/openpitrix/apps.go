@@ -152,7 +152,7 @@ func CreateApp(request *CreateAppRequest) (*CreateAppResponse, error) {
 	if request.Isv != "" {
 		createAppRequest.Isv = &wrappers.StringValue{Value: request.Isv}
 	}
-	resp, err := op.App().CreateApp(openpitrix.SystemContext(), createAppRequest)
+	resp, err := op.App().CreateApp(openpitrix.ContextWithUsername(request.Username), createAppRequest)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -254,7 +254,7 @@ func CreateAppVersion(request *CreateAppVersionRequest) (*CreateAppVersionRespon
 		createAppVersionRequest.Package = &wrappers.BytesValue{Value: request.Package}
 	}
 
-	resp, err := op.App().CreateAppVersion(openpitrix.SystemContext(), createAppVersionRequest)
+	resp, err := op.App().CreateAppVersion(openpitrix.ContextWithUsername(request.Username), createAppVersionRequest)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -587,7 +587,7 @@ func ListAppVersionAudits(conditions *params.Conditions, orderBy string, reverse
 	if orderBy != "" {
 		describeAppVersionAudits.SortKey = &wrappers.StringValue{Value: orderBy}
 	}
-	describeAppVersionAudits.Reverse = &wrappers.BoolValue{Value: reverse}
+	describeAppVersionAudits.Reverse = &wrappers.BoolValue{Value: !reverse}
 	describeAppVersionAudits.Limit = uint32(limit)
 	describeAppVersionAudits.Offset = uint32(offset)
 	resp, err := client.App().DescribeAppVersionAudits(openpitrix.SystemContext(), describeAppVersionAudits)
@@ -626,7 +626,7 @@ func ListAppVersionReviews(conditions *params.Conditions, orderBy string, revers
 	if orderBy != "" {
 		describeAppVersionReviews.SortKey = &wrappers.StringValue{Value: orderBy}
 	}
-	describeAppVersionReviews.Reverse = &wrappers.BoolValue{Value: reverse}
+	describeAppVersionReviews.Reverse = &wrappers.BoolValue{Value: !reverse}
 	describeAppVersionReviews.Limit = uint32(limit)
 	describeAppVersionReviews.Offset = uint32(offset)
 	// TODO icon is needed
@@ -669,7 +669,7 @@ func ListAppVersions(conditions *params.Conditions, orderBy string, reverse bool
 	if orderBy != "" {
 		describeAppVersionsRequest.SortKey = &wrappers.StringValue{Value: orderBy}
 	}
-	describeAppVersionsRequest.Reverse = &wrappers.BoolValue{Value: reverse}
+	describeAppVersionsRequest.Reverse = &wrappers.BoolValue{Value: !reverse}
 	describeAppVersionsRequest.Limit = uint32(limit)
 	describeAppVersionsRequest.Offset = uint32(offset)
 	resp, err := client.App().DescribeAppVersions(openpitrix.SystemContext(), describeAppVersionsRequest)

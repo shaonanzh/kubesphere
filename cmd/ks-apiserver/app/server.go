@@ -160,6 +160,7 @@ func CreateClientSet(conf *apiserverconfig.Config, stopCh <-chan struct{}) error
 	csop := &client.ClientSetOptions{}
 
 	csop.SetDevopsOptions(conf.DevopsOptions).
+		SetSonarQubeOptions(conf.SonarQubeOptions).
 		SetKubernetesOptions(conf.KubernetesOptions).
 		SetMySQLOptions(conf.MySQLOptions).
 		SetLdapOptions(conf.LdapOptions).
@@ -290,6 +291,26 @@ func WaitForResourceSync(stopCh <-chan struct{}) error {
 
 	ksInformerFactory.Start(stopCh)
 	ksInformerFactory.WaitForCacheSync(stopCh)
+
+	appInformerFactory := informers.AppSharedInformerFactory()
+
+	appGVRs := []schema.GroupVersionResource{
+		{Group: "app.k8s.io", Version: "v1beta1", Resource: "applications"},
+	}
+
+	for _, gvr := range appGVRs {
+		if !isResourceExists(gvr) {
+			klog.Warningf("resource %s not exists in the cluster", gvr)
+		} else {
+			_, err := appInformerFactory.ForResource(gvr)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	appInformerFactory.Start(stopCh)
+	appInformerFactory.WaitForCacheSync(stopCh)
 
 	klog.V(0).Info("Finished caching objects")
 

@@ -38,7 +38,6 @@ import (
 	"kubesphere.io/kubesphere/pkg/utils/sliceutil"
 	"sort"
 	"strings"
-	"time"
 )
 
 const (
@@ -481,11 +480,11 @@ func GetUserWorkspaceSimpleRules(workspace, username string) ([]models.SimpleRul
 		return nil, err
 	}
 
-	// workspace manager
+	// cluster-admin
 	if RulesMatchesRequired(clusterRules, rbacv1.PolicyRule{
 		Verbs:     []string{"*"},
 		APIGroups: []string{"*"},
-		Resources: []string{"workspaces", "workspaces/*"},
+		Resources: []string{"*"},
 	}) {
 		return GetWorkspaceRoleSimpleRules(workspace, constants.WorkspaceAdmin), nil
 	}
@@ -494,10 +493,23 @@ func GetUserWorkspaceSimpleRules(workspace, username string) ([]models.SimpleRul
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+
+			// workspaces-manager
+			if RulesMatchesRequired(clusterRules, rbacv1.PolicyRule{
+				Verbs:     []string{"*"},
+				APIGroups: []string{"*"},
+				Resources: []string{"workspaces", "workspaces/*"},
+			}) {
+				return GetWorkspaceRoleSimpleRules(workspace, constants.WorkspacesManager), nil
+			}
+
 			return []models.SimpleRule{}, nil
 		}
+
+		klog.Error(err)
 		return nil, err
 	}
+
 	return GetWorkspaceRoleSimpleRules(workspace, workspaceRole.Annotations[constants.DisplayNameAnnotationKey]), nil
 }
 
@@ -533,6 +545,12 @@ func GetWorkspaceRoleSimpleRules(workspace, roleName string) []models.SimpleRule
 			{Name: "roles", Actions: []string{"view"}},
 			{Name: "apps", Actions: []string{"view"}},
 			{Name: "repos", Actions: []string{"view"}},
+		}
+	case constants.WorkspacesManager:
+		workspaceRules = []models.SimpleRule{
+			{Name: "workspaces", Actions: []string{"edit", "delete", "view"}},
+			{Name: "members", Actions: []string{"edit", "delete", "create", "view"}},
+			{Name: "roles", Actions: []string{"view"}},
 		}
 	}
 
@@ -668,24 +686,20 @@ func CreateClusterRoleBinding(username string, clusterRoleName string) error {
 
 	// cluster role changed
 	if found.RoleRef.Name != clusterRoleName {
-		deletePolicy := metav1.DeletePropagationForeground
+		deletePolicy := metav1.DeletePropagationBackground
 		gracePeriodSeconds := int64(0)
 		deleteOption := &metav1.DeleteOptions{PropagationPolicy: &deletePolicy, GracePeriodSeconds: &gracePeriodSeconds}
 		err = client.ClientSets().K8s().Kubernetes().RbacV1().ClusterRoleBindings().Delete(found.Name, deleteOption)
 		if err != nil {
-			klog.Errorln("delete cluster role binding", err)
+			klog.Errorln(err)
 			return err
 		}
-		maxRetries := 3
-		for i := 0; i < maxRetries; i++ {
-			_, err = client.ClientSets().K8s().Kubernetes().RbacV1().ClusterRoleBindings().Create(clusterRoleBinding)
-			if err == nil {
-				return nil
-			}
-			time.Sleep(300 * time.Millisecond)
+		_, err = client.ClientSets().K8s().Kubernetes().RbacV1().ClusterRoleBindings().Create(clusterRoleBinding)
+		if err != nil {
+			klog.Errorln(err)
+			return err
 		}
-		klog.Errorln("create cluster role binding", err)
-		return err
+		return nil
 	}
 
 	if !k8sutil.ContainsUser(found.Subjects, username) {

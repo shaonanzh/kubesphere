@@ -241,7 +241,7 @@ func ListAppVersions(req *restful.Request, resp *restful.Response) {
 	if statistics {
 		for _, item := range result.Items {
 			if version, ok := item.(*openpitrix.AppVersion); ok {
-				statisticsResult, err := openpitrix.ListApplications(&params.Conditions{Match: map[string]string{"app_id": version.AppId, "version_id": version.VersionId}}, 0, 0)
+				statisticsResult, err := openpitrix.ListApplications(&params.Conditions{Match: map[string]string{"app_id": version.AppId, "version_id": version.VersionId}}, 0, 0, "", false)
 				if err != nil {
 					klog.Errorln(err)
 					resp.WriteHeaderAndEntity(http.StatusInternalServerError, errors.Wrap(err))
@@ -287,7 +287,8 @@ func ListApps(req *restful.Request, resp *restful.Response) {
 	if statistics {
 		for _, item := range result.Items {
 			if app, ok := item.(*openpitrix.App); ok {
-				statisticsResult, err := openpitrix.ListApplications(&params.Conditions{Match: map[string]string{"app_id": app.AppId, "status": "active|used|enabled|stopped"}}, 0, 0)
+				status := "active|used|enabled|stopped|pending|creating|upgrading|updating|rollbacking|stopping|starting|recovering|resizing|scaling|deleting"
+				statisticsResult, err := openpitrix.ListApplications(&params.Conditions{Match: map[string]string{"app_id": app.AppId, "status": status}}, 0, 0, "", false)
 				if err != nil {
 					klog.Errorln(err)
 					resp.WriteHeaderAndEntity(http.StatusInternalServerError, errors.Wrap(err))
@@ -391,6 +392,8 @@ func CreateApp(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
+	createAppRequest.Username = req.HeaderParameter(constants.UserNameHeader)
+
 	validate, _ := strconv.ParseBool(req.QueryParameter("validate"))
 
 	var result interface{}
@@ -431,8 +434,8 @@ func CreateAppVersion(req *restful.Request, resp *restful.Response) {
 		return
 	}
 	// override app id
-	appId := req.PathParameter("app")
-	createAppVersionRequest.AppId = appId
+	createAppVersionRequest.AppId = req.PathParameter("app")
+	createAppVersionRequest.Username = req.HeaderParameter(constants.UserNameHeader)
 
 	validate, _ := strconv.ParseBool(req.QueryParameter("validate"))
 

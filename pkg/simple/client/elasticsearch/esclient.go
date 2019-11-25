@@ -117,7 +117,7 @@ func detectVersionMajor(host string) (string, error) {
 	if res.IsError() {
 		// Print the response status and error information.
 		e, _ := b["error"].(map[string]interface{})
-		return "", fmt.Errorf("[%s] %s: %s", res.Status(), e["type"], e["reason"])
+		return "", fmt.Errorf("[%s] type: %v, reason: %v", res.Status(), e["type"], e["reason"])
 	}
 
 	// get the major version
@@ -209,14 +209,6 @@ func createQueryRequest(param v1alpha2.QueryParameters) ([]byte, error) {
 			order = "desc"
 		}
 		request.Sorts = append(request.Sorts, v1alpha2.Sort{Order: v1alpha2.Order{Order: order}})
-
-		var mainHighLight v1alpha2.MainHighLight
-		mainHighLight.Fields = append(mainHighLight.Fields, v1alpha2.LogHighLightField{})
-		mainHighLight.Fields = append(mainHighLight.Fields, v1alpha2.NamespaceHighLightField{})
-		mainHighLight.Fields = append(mainHighLight.Fields, v1alpha2.PodHighLightField{})
-		mainHighLight.Fields = append(mainHighLight.Fields, v1alpha2.ContainerHighLightField{})
-		mainHighLight.FragmentSize = 0
-		request.MainHighLight = mainHighLight
 	}
 
 	request.MainQuery = v1alpha2.BoolQuery{Bool: mainBoolQuery}
@@ -303,7 +295,6 @@ func (c *ElasticSearchClient) parseQueryResult(operation int, body []byte) (*v1a
 			logRecord.Pod = hit.Source.Kubernetes.Pod
 			logRecord.Container = hit.Source.Kubernetes.Container
 			logRecord.Host = hit.Source.Kubernetes.Host
-			logRecord.HighLight = hit.HighLight
 			readResult.Records = append(readResult.Records, logRecord)
 		}
 		queryResult.Read = &readResult

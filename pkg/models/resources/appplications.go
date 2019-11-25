@@ -1,43 +1,43 @@
 /*
+ *
+ * Copyright 2019 The KubeSphere Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * /
+ */
 
- Copyright 2019 The KubeSphere Authors.
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-
-*/
 package resources
 
 import (
+	"github.com/kubernetes-sigs/application/pkg/apis/app/v1beta1"
+	"k8s.io/apimachinery/pkg/labels"
 	"kubesphere.io/kubesphere/pkg/constants"
 	"kubesphere.io/kubesphere/pkg/informers"
 	"kubesphere.io/kubesphere/pkg/server/params"
 	"kubesphere.io/kubesphere/pkg/utils/sliceutil"
 	"sort"
 	"strings"
-
-	rbac "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
-type roleSearcher struct {
+type appSearcher struct {
 }
 
-func (*roleSearcher) get(namespace, name string) (interface{}, error) {
-	return informers.SharedInformerFactory().Rbac().V1().Roles().Lister().Roles(namespace).Get(name)
+func (*appSearcher) get(namespace, name string) (interface{}, error) {
+	return informers.AppSharedInformerFactory().App().V1beta1().Applications().Lister().Applications(namespace).Get(name)
 }
 
 // exactly Match
-func (*roleSearcher) match(match map[string]string, item *rbac.Role) bool {
+func (*appSearcher) match(match map[string]string, item *v1beta1.Application) bool {
 	for k, v := range match {
 		switch k {
 		case Name:
@@ -48,12 +48,6 @@ func (*roleSearcher) match(match map[string]string, item *rbac.Role) bool {
 		case Keyword:
 			if !strings.Contains(item.Name, v) && !searchFuzzy(item.Labels, "", v) && !searchFuzzy(item.Annotations, "", v) {
 				return false
-			}
-		case UserFacing:
-			if v == "true" {
-				if !isUserFacingRole(item) {
-					return false
-				}
 			}
 		default:
 			// label not exist or value not equal
@@ -66,7 +60,7 @@ func (*roleSearcher) match(match map[string]string, item *rbac.Role) bool {
 }
 
 // Fuzzy searchInNamespace
-func (*roleSearcher) fuzzy(fuzzy map[string]string, item *rbac.Role) bool {
+func (*appSearcher) fuzzy(fuzzy map[string]string, item *v1beta1.Application) bool {
 	for k, v := range fuzzy {
 		switch k {
 		case Name:
@@ -82,6 +76,10 @@ func (*roleSearcher) fuzzy(fuzzy map[string]string, item *rbac.Role) bool {
 				return false
 			}
 			return false
+		case app:
+			if !strings.Contains(item.Labels[chart], v) && !strings.Contains(item.Labels[release], v) {
+				return false
+			}
 		default:
 			if !searchFuzzy(item.Labels, k, v) {
 				return false
@@ -91,7 +89,7 @@ func (*roleSearcher) fuzzy(fuzzy map[string]string, item *rbac.Role) bool {
 	return true
 }
 
-func (*roleSearcher) compare(a, b *rbac.Role, orderBy string) bool {
+func (*appSearcher) compare(a, b *v1beta1.Application, orderBy string) bool {
 	switch orderBy {
 	case CreateTime:
 		return a.CreationTimestamp.Time.Before(b.CreationTimestamp.Time)
@@ -102,19 +100,19 @@ func (*roleSearcher) compare(a, b *rbac.Role, orderBy string) bool {
 	}
 }
 
-func (s *roleSearcher) search(namespace string, conditions *params.Conditions, orderBy string, reverse bool) ([]interface{}, error) {
-	roles, err := informers.SharedInformerFactory().Rbac().V1().Roles().Lister().Roles(namespace).List(labels.Everything())
+func (s *appSearcher) search(namespace string, conditions *params.Conditions, orderBy string, reverse bool) ([]interface{}, error) {
+	apps, err := informers.AppSharedInformerFactory().App().V1beta1().Applications().Lister().Applications(namespace).List(labels.Everything())
 
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*rbac.Role, 0)
+	result := make([]*v1beta1.Application, 0)
 
 	if len(conditions.Match) == 0 && len(conditions.Fuzzy) == 0 {
-		result = roles
+		result = apps
 	} else {
-		for _, item := range roles {
+		for _, item := range apps {
 			if s.match(conditions.Match, item) && s.fuzzy(conditions.Fuzzy, item) {
 				result = append(result, item)
 			}
@@ -134,12 +132,4 @@ func (s *roleSearcher) search(namespace string, conditions *params.Conditions, o
 		r = append(r, i)
 	}
 	return r, nil
-}
-
-// role created by user from kubesphere dashboard
-func isUserFacingRole(role *rbac.Role) bool {
-	if role.Annotations[constants.CreatorAnnotationKey] != "" {
-		return true
-	}
-	return false
 }

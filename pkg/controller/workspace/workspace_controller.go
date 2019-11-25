@@ -324,6 +324,15 @@ func (r *ReconcileWorkspace) deleteGroup(instance *tenantv1alpha1.Workspace) err
 }
 
 func (r *ReconcileWorkspace) deleteDevOpsProjects(instance *tenantv1alpha1.Workspace) error {
+	if _, err := cs.ClientSets().Devops(); err != nil {
+		// skip if devops is not enabled
+		if _, notEnabled := err.(cs.ClientSetNotEnabledError); notEnabled {
+			return nil
+		} else {
+			log.Error(err, "")
+			return err
+		}
+	}
 	var wg sync.WaitGroup
 
 	log.Info("Delete DevOps Projects")
@@ -556,14 +565,24 @@ func getWorkspaceAdmin(workspaceName string) *rbac.ClusterRole {
 			Resources:     []string{"workspaces", "workspaces/*"},
 		},
 		{
+			Verbs:     []string{"watch"},
+			APIGroups: []string{""},
+			Resources: []string{"namespaces"},
+		},
+		{
 			Verbs:     []string{"list"},
 			APIGroups: []string{"iam.kubesphere.io"},
 			Resources: []string{"users"},
 		},
 		{
+			Verbs:     []string{"get", "list"},
+			APIGroups: []string{"openpitrix.io"},
+			Resources: []string{"categories"},
+		},
+		{
 			Verbs:     []string{"*"},
 			APIGroups: []string{"openpitrix.io"},
-			Resources: []string{"applications", "apps", "apps/versions", "apps/events", "apps/action", "apps/audits", "repos", "repos/action", "categories", "attachments"},
+			Resources: []string{"applications", "apps", "apps/versions", "apps/events", "apps/action", "apps/audits", "repos", "repos/action", "attachments"},
 		},
 	}
 
@@ -596,13 +615,13 @@ func getWorkspaceRegular(workspaceName string) *rbac.ClusterRole {
 		{
 			Verbs:     []string{"get", "list"},
 			APIGroups: []string{"openpitrix.io"},
-			Resources: []string{"apps/events", "apps/action", "apps/audits"},
+			Resources: []string{"apps/events", "apps/action", "apps/audits", "categories"},
 		},
 
 		{
 			Verbs:     []string{"*"},
 			APIGroups: []string{"openpitrix.io"},
-			Resources: []string{"applications", "apps", "apps/versions", "repos", "repos/action", "categories", "attachments"},
+			Resources: []string{"applications", "apps", "apps/versions", "repos", "repos/action", "attachments"},
 		},
 	}
 
@@ -622,9 +641,14 @@ func getWorkspaceViewer(workspaceName string) *rbac.ClusterRole {
 			Resources:     []string{"workspaces", "workspaces/*"},
 		},
 		{
+			Verbs:     []string{"watch"},
+			APIGroups: []string{""},
+			Resources: []string{"namespaces"},
+		},
+		{
 			Verbs:     []string{"get", "list"},
 			APIGroups: []string{"openpitrix.io"},
-			Resources: []string{"applications", "apps", "apps/versions", "repos", "categories", "attachments"},
+			Resources: []string{"applications", "apps", "apps/events", "apps/action", "apps/audits", "apps/versions", "repos", "categories", "attachments"},
 		},
 	}
 	return viewer
